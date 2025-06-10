@@ -2,6 +2,8 @@
 # A script to list version numbers of critical development tools
 # If you have tools installed in other directories, adjust PATH here AND
 # in ~lfs/.bashrc (section 4.4) as well.
+### this script was sourced from the LFS handbook (non systemd) v12.3
+
 LC_ALL=C
 PATH=/usr/bin:/bin
 bail() { echo "FATAL: $1"; exit 1; }
