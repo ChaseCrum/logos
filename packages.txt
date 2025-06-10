@@ -18,4 +18,4 @@ Sed-4.1.5
 Tar-1.22
 Texinfo-5.0
 Xz-utils-5.0.0
-g++
+g++-5.2
