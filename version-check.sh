@@ -78,4 +78,4 @@ if [ "$(nproc)" = "" ]; then
 else
  echo "OK: nproc reports $(nproc) logical cores are available"
 fi
-EOF
+
