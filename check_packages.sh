@@ -42,9 +42,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   ((i++))
   echo -n "."  # Simple progress
 
-  PACKAGE_ORIG=$(echo "$line" | cut -d'-' -f1 | xargs)
-  PACKAGE=$(normalize_package_name "$PACKAGE_ORIG")
-  REQUIRED_VERSION=$(clean_version "$(echo "$line" | cut -d'-' -f2 | xargs)")
+  PACKAGE_ORIG=$(echo "$line" | rev | cut -d'-' -f2- | rev | xargs)
+REQUIRED_VERSION=$(echo "$line" | rev | cut -d'-' -f1 | rev | xargs)
+PACKAGE=$(normalize_package_name "$PACKAGE_ORIG")
 
   # Linux kernel special case
   if [[ "$PACKAGE" == "linux-kernel" ]]; then
