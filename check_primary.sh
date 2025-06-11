@@ -28,7 +28,7 @@ calculate_sizes() {
     local ram_mb=$2
 
     local boot_mb=500
-    local swap_mb=$((ram_mb * 2))
+    swap_mb=$((ram_mb * 2))
     local remaining_mb=$((total_mb - boot_mb - swap_mb))
 
     src_mb=$((remaining_mb * 15 / 100))
@@ -107,7 +107,7 @@ echo_step "Creating Partition Table (MBR)"
 parted -s "$DISK" mklabel msdos
 
 BOOT_MB=500
-SWAP_MB=$((RAM_MB * 2))
+SWAP_MB=$((swap_mb))
 
 # Calculate start and end points
 declare -i start=1
