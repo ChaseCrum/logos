@@ -170,17 +170,11 @@ HOME_PART=$(get_partition_name "$DISK" 4)
 
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    ROOT_PART=$(get_partition_name "$DISK" 3)
-    HOME_PART=$(get_partition_name "$DISK" 4)
-    SWAP_PART=$(get_partition_name "$DISK" 2)
     format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
     format_partition "$SWAP_PART" "swap" "swap"
     format_partition "$ROOT_PART" "xfs" "/"
     format_partition "$HOME_PART" "xfs" "/home"
 else
-    ROOT_PART=$(get_partition_name "$DISK" 3)
-    HOME_PART=$(get_partition_name "$DISK" 4)
-    SWAP_PART=$(get_partition_name "$DISK" 2)
     format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
     format_partition "$SWAP_PART" "swap" "swap"
     format_partition "$ROOT_PART" "xfs" "/"
