@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 clear
 echo -e "\n=== Detecting Disks ==="
 lsblk -dno NAME,SIZE,TYPE | grep disk
@@ -37,23 +39,28 @@ fi
 SWAP_MB=$((RAM_MB * 2))
 echo "Using RAM_MB = $RAM_MB → Swap size will be $SWAP_MB MB"
 
-# Calculate total disk size in MB
+# Get total disk size in MB
 total_mb=$(lsblk -b -dn -o SIZE "$DISK")
 total_mb=$((total_mb / 1024 / 1024))
 
-# Define fixed partition sizes
+# Fixed partitions
 BOOT_MB=500
-SRC_MB=35672
-OPT_MB=11890
-TMP_MB=11890
-USR_MB=47563
-ROOT_MB=47563
 
-# Calculate remaining for /home
-used_mb=$((BOOT_MB + SWAP_MB + SRC_MB + OPT_MB + TMP_MB + USR_MB + ROOT_MB))
-HOME_MB=$((total_mb - used_mb))
+# Remaining after boot + swap
+REMAINING_MB=$((total_mb - BOOT_MB - SWAP_MB))
 
-# Display planned layout
+# Allocate space based on percentages
+SRC_MB=$((REMAINING_MB * 15 / 100))
+OPT_MB=$((REMAINING_MB * 5 / 100))
+TMP_MB=$((REMAINING_MB * 5 / 100))
+USR_MB=$((REMAINING_MB * 20 / 100))
+ROOT_MB=$((REMAINING_MB * 20 / 100))
+
+# /home gets the rest
+used_dynamic=$((SRC_MB + OPT_MB + TMP_MB + USR_MB + ROOT_MB))
+HOME_MB=$((REMAINING_MB - used_dynamic))
+
+# Display layout
 echo -e "\nPlanned Partition Layout (in MB):"
 echo "1. /boot     : $BOOT_MB"
 echo "2. swap      : $SWAP_MB"
@@ -63,9 +70,8 @@ echo "5. /tmp      : $TMP_MB"
 echo "6. /usr      : $USR_MB"
 echo "7. /         : $ROOT_MB"
 echo "8. /home     : $HOME_MB"
-echo "Total Used  : $((used_mb + HOME_MB)) / $total_mb MB"
+echo "Total Used  : $((BOOT_MB + SWAP_MB + REMAINING_MB)) / $total_mb MB"
 
-# Confirm before proceeding
 echo -n "Do you approve this layout and want to proceed with partitioning and formatting? [y/N]: "
 read APPROVE
 if [[ ! "$APPROVE" =~ ^[Yy]$ ]]; then
@@ -78,7 +84,69 @@ if $DRY_RUN; then
     exit 0
 fi
 
-# Placeholder for actual partitioning logic
-echo "Proceeding with actual partitioning..."
-# (Insert your partitioning commands here)
+echo -e "\n=== Partitioning Disk ==="
+
+# Wipe everything
+sgdisk --zap-all "$DISK" || true
+dd if=/dev/zero of="$DISK" bs=512 count=2048 status=none
+wipefs -a "$DISK"
+parted -s "$DISK" mklabel msdos
+
+START_MB=1
+part_num=1
+
+create_partition() {
+    local SIZE_MB=$1
+    local LABEL=$2
+    local FS=$3
+    local END_MB=$((START_MB + SIZE_MB - 1))
+    
+    parted -s "$DISK" mkpart primary "${START_MB}MB" "${END_MB}MB"
+    
+    if [[ "$LABEL" == "/boot" ]]; then
+        parted -s "$DISK" set $part_num boot on
+    fi
+
+    echo "Created $LABEL from $START_MB MB to $END_MB MB as $FS"
+    START_MB=$((END_MB + 1))
+    part_num=$((part_num + 1))
+}
+
+create_partition $BOOT_MB "/boot" "xfs"
+create_partition $SWAP_MB "swap" "swap"
+create_partition $SRC_MB "/usr/src" "xfs"
+create_partition $OPT_MB "/opt" "xfs"
+create_partition $TMP_MB "/tmp" "xfs"
+create_partition $USR_MB "/usr" "xfs"
+create_partition $ROOT_MB "/" "xfs"
+create_partition $HOME_MB "/home" "xfs"
+
+echo -e "\n=== Formatting Partitions ==="
+partprobe "$DISK"
+sleep 2
+
+format_partition() {
+    local PART=$1
+    local FS=$2
+    local LABEL=$3
+
+    if [[ "$FS" == "swap" ]]; then
+        mkswap "$PART"
+        echo "Formatted $PART as swap"
+    else
+        mkfs.xfs -f "$PART"
+        echo "Formatted $PART as xfs ($LABEL)"
+    fi
+}
+
+format_partition "${DISK}1" "xfs" "/boot"
+format_partition "${DISK}2" "swap" "swap"
+format_partition "${DISK}3" "xfs" "/usr/src"
+format_partition "${DISK}4" "xfs" "/opt"
+format_partition "${DISK}5" "xfs" "/tmp"
+format_partition "${DISK}6" "xfs" "/usr"
+format_partition "${DISK}7" "xfs" "/"
+format_partition "${DISK}8" "xfs" "/home"
+
+echo -e "\n✅ Partitioning and formatting complete!"
 
