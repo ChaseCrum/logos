@@ -27,7 +27,7 @@ calculate_sizes() {
     local total_mb=$1
     local ram_mb=$2
 
-    local boot_mb=500
+    boot_mb=500
     swap_mb=$((ram_mb * 2))
     local remaining_mb=$((total_mb - boot_mb - swap_mb))
 
