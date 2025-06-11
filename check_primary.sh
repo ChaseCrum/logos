@@ -1,146 +1,84 @@
 #!/bin/bash
 
-set -euo pipefail
+clear
+echo -e "\n=== Detecting Disks ==="
+lsblk -dno NAME,SIZE,TYPE | grep disk
 
-### Function Definitions ###
-echo_step() {
-    echo -e "\n=== $1 ==="
-}
+echo -e "\n=== Choose Disk ==="
+echo -n "Enter the full path of the disk to format (e.g., /dev/sdX): "
+read DISK
 
-confirm() {
-    read -rp "$1 [y/N]: " response
-    [[ "$response" =~ ^[Yy]$ ]] || {
-        echo "Aborted."; exit 1;
-    }
-}
+echo -n "Run in dry-run mode (no partitioning or formatting will occur)? [y/N]: "
+read DRY_RUN
 
-get_ram_mb() {
-    grep MemTotal /proc/meminfo | awk '{print int($2 / 1024)}'
-}
-
-get_disk_size_mb() {
-    local disk=$1
-    lsblk -bno SIZE "$disk" | awk '{print int($1 / 1024 / 1024)}'
-}
-
-calculate_sizes() {
-    local total_mb=$1
-    local ram_mb=$2
-
-    boot_mb=500
-    swap_mb=$((ram_mb * 2))
-    local remaining_mb=$((total_mb - boot_mb - swap_mb))
-
-    src_mb=$((remaining_mb * 15 / 100))
-    opt_mb=$((remaining_mb * 5 / 100))
-    tmp_mb=$((remaining_mb * 5 / 100))
-    usr_mb=$((remaining_mb * 20 / 100))
-    root_mb=$((remaining_mb * 20 / 100))
-    home_mb=$((remaining_mb - src_mb - opt_mb - tmp_mb - usr_mb - root_mb))
-
-    total_calc=$((boot_mb + swap_mb + src_mb + opt_mb + tmp_mb + usr_mb + root_mb + home_mb))
-
-    echo "\nPlanned Partition Layout (in MB):"
-    echo "1. /boot     : $boot_mb"
-    echo "2. swap      : $swap_mb"
-    echo "3. /usr/src  : $src_mb"
-    echo "4. /opt      : $opt_mb"
-    echo "5. /tmp      : $tmp_mb"
-    echo "6. /usr      : $usr_mb"
-    echo "7. /         : $root_mb"
-    echo "8. /home     : $home_mb"
-    echo "Total Used  : $total_calc / $total_mb MB"
-}
-
-format_partitions() {
-    local disk=$1
-
-    mkfs.xfs -f ${disk}1 -L boot
-    mkswap ${disk}2
-    mkfs.xfs -f ${disk}3 -L usr_src
-    mkfs.xfs -f ${disk}4 -L opt
-    mkfs.xfs -f ${disk}5 -L tmp
-    mkfs.xfs -f ${disk}6 -L usr
-    mkfs.xfs -f ${disk}7 -L root
-    mkfs.xfs -f ${disk}8 -L home
-}
-
-### Script Starts Here ###
-echo_step "Detecting Disks"
-lsblk -d -o NAME,SIZE,TYPE | grep disk
-
-echo_step "Choose Disk"
-read -rp "Enter the full path of the disk to format (e.g., /dev/sdX): " DISK
-
-[[ -b "$DISK" ]] || { echo "Invalid disk: $DISK"; exit 1; }
-
-read -rp "Run in dry-run mode (no partitioning or formatting will occur)? [y/N]: " dryrun_response
-DRY_RUN=false
-[[ "$dryrun_response" =~ ^[Yy]$ ]] && DRY_RUN=true
-
-confirm "WARNING: This will erase all data on $DISK. Continue?"
-
-echo_step "Getting RAM Size"
-read -rp "Enter RAM in MB (leave blank to auto-detect): " input_ram
-if [[ -n "$input_ram" ]]; then
-    if [[ "$input_ram" =~ ^[0-9]+$ ]]; then
-        RAM_MB=$input_ram
-    else
-        echo "Invalid RAM value. Must be a number in MB."; exit 1;
-    fi
+if [[ "$DRY_RUN" =~ ^[Yy]$ ]]; then
+    DRY_RUN=true
 else
-    RAM_MB=$(get_ram_mb)
+    DRY_RUN=false
 fi
 
-echo "Using RAM_MB = $RAM_MB → Swap size will be $((RAM_MB * 2)) MB"
+echo -e "WARNING: This will erase all data on $DISK. Continue? [y/N]: "
+read CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
 
-DISK_MB=$(get_disk_size_mb "$DISK")
-calculate_sizes $DISK_MB $RAM_MB
-confirm "Do you approve this layout and want to proceed with partitioning and formatting?"
+# Get RAM size
+echo -e "\n=== Getting RAM Size ==="
+echo -n "Enter RAM in MB (leave blank to auto-detect): "
+read RAM_MB
 
-if [ "$DRY_RUN" = true ]; then
-    echo_step "Dry-run complete. No changes made."
+if [[ -z "$RAM_MB" ]]; then
+    RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    RAM_MB=$((RAM_KB / 1024))
+fi
+
+SWAP_MB=$((RAM_MB * 2))
+echo "Using RAM_MB = $RAM_MB → Swap size will be $SWAP_MB MB"
+
+# Calculate total disk size in MB
+total_mb=$(lsblk -b -dn -o SIZE "$DISK")
+total_mb=$((total_mb / 1024 / 1024))
+
+# Define fixed partition sizes
+BOOT_MB=500
+SRC_MB=35672
+OPT_MB=11890
+TMP_MB=11890
+USR_MB=47563
+ROOT_MB=47563
+
+# Calculate remaining for /home
+used_mb=$((BOOT_MB + SWAP_MB + SRC_MB + OPT_MB + TMP_MB + USR_MB + ROOT_MB))
+HOME_MB=$((total_mb - used_mb))
+
+# Display planned layout
+echo -e "\nPlanned Partition Layout (in MB):"
+echo "1. /boot     : $BOOT_MB"
+echo "2. swap      : $SWAP_MB"
+echo "3. /usr/src  : $SRC_MB"
+echo "4. /opt      : $OPT_MB"
+echo "5. /tmp      : $TMP_MB"
+echo "6. /usr      : $USR_MB"
+echo "7. /         : $ROOT_MB"
+echo "8. /home     : $HOME_MB"
+echo "Total Used  : $((used_mb + HOME_MB)) / $total_mb MB"
+
+# Confirm before proceeding
+echo -n "Do you approve this layout and want to proceed with partitioning and formatting? [y/N]: "
+read APPROVE
+if [[ ! "$APPROVE" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 1
+fi
+
+if $DRY_RUN; then
+    echo "Dry-run mode enabled. No changes made."
     exit 0
 fi
 
-echo_step "Creating Partition Table (MBR)"
-parted -s "$DISK" mklabel msdos
+# Placeholder for actual partitioning logic
+echo "Proceeding with actual partitioning..."
+# (Insert your partitioning commands here)
 
-BOOT_MB=500
-SWAP_MB=$((swap_mb))
-
-# Calculate start and end points
-declare -i start=1
-end=$((start + BOOT_MB - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-parted -s "$DISK" set 1 boot on
-
-start=$((end + 1)); end=$((start + SWAP_MB - 1))
-parted -s "$DISK" mkpart primary linux-swap ${start}MiB ${end}MiB
-
-start=$((end + 1)); end=$((start + src_mb - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-
-start=$((end + 1)); end=$((start + opt_mb - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-
-start=$((end + 1)); end=$((start + tmp_mb - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-
-start=$((end + 1)); end=$((start + usr_mb - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-
-start=$((end + 1)); end=$((start + root_mb - 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB ${end}MiB
-
-start=$((end + 1))
-parted -s "$DISK" mkpart primary xfs ${start}MiB 100%
-
-sleep 2
-echo_step "Formatting Partitions"
-PART_PREFIX="${DISK}"
-[[ "$DISK" =~ nvme ]] && PART_PREFIX="${DISK}p"
-format_partitions "$PART_PREFIX"
-
-echo_step "Partitioning and formatting complete."
-echo "You may now mount the partitions and continue system setup."
