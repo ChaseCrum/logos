@@ -37,24 +37,43 @@ if [[ -z "$RAM_MB" ]]; then
 fi
 
 SWAP_MB=$((RAM_MB * 2))
-ROOT_MB=75000  # fixed size for /
+ROOT_MB=75000
+ESP_MB=512
 BIOS_BOOT_MB=2
 
-# Total disk size
+# Detect firmware type
+if [ -d /sys/firmware/efi ]; then
+    BOOT_MODE="UEFI"
+else
+    BOOT_MODE="BIOS"
+fi
+
+echo "Detected Boot Mode: $BOOT_MODE"
+
+# Get total disk size in MB
 total_mb=$(lsblk -b -dn -o SIZE "$DISK")
 total_mb=$((total_mb / 1024 / 1024))
 
-# Calculate space left for /home
-used_mb=$((BIOS_BOOT_MB + SWAP_MB + ROOT_MB))
+# Calculate used and /home
+if [[ "$BOOT_MODE" == "UEFI" ]]; then
+    used_mb=$((ESP_MB + SWAP_MB + ROOT_MB))
+else
+    used_mb=$((BIOS_BOOT_MB + SWAP_MB + ROOT_MB))
+fi
+
 HOME_MB=$((total_mb - used_mb))
 
-# Show plan
+# Show layout
 echo -e "\nPlanned Partition Layout (in MB):"
-echo "1. BIOS Boot : $BIOS_BOOT_MB"
-echo "2. swap      : $SWAP_MB"
-echo "3. /         : $ROOT_MB"
-echo "4. /home     : $HOME_MB"
-echo "Total Used  : $((BIOS_BOOT_MB + SWAP_MB + ROOT_MB + HOME_MB)) / $total_mb MB"
+if [[ "$BOOT_MODE" == "UEFI" ]]; then
+    echo "1. EFI System : $ESP_MB"
+else
+    echo "1. BIOS Boot  : $BIOS_BOOT_MB"
+fi
+echo "2. swap       : $SWAP_MB"
+echo "3. /          : $ROOT_MB"
+echo "4. /home      : $HOME_MB"
+echo "Total Used   : $((used_mb)) / $total_mb MB"
 
 echo -n "Do you approve this layout and want to proceed with partitioning and formatting? [y/N]: "
 read APPROVE
@@ -68,9 +87,8 @@ if $DRY_RUN; then
     exit 0
 fi
 
+# Partitioning
 echo -e "\n=== Partitioning Disk (GPT) ==="
-
-# Wipe and prepare
 sgdisk --zap-all "$DISK" || true
 dd if=/dev/zero of="$DISK" bs=512 count=2048 status=none
 wipefs -a "$DISK"
@@ -89,6 +107,8 @@ create_partition() {
 
     if [[ "$LABEL" == "BIOS" ]]; then
         parted -s "$DISK" set $part_num bios_grub on
+    elif [[ "$LABEL" == "ESP" ]]; then
+        parted -s "$DISK" set $part_num esp on
     fi
 
     echo "Created $LABEL from $START_MB MB to $END_MB MB"
@@ -96,7 +116,12 @@ create_partition() {
     part_num=$((part_num + 1))
 }
 
-create_partition $BIOS_BOOT_MB "BIOS" "none"
+if [[ "$BOOT_MODE" == "UEFI" ]]; then
+    create_partition $ESP_MB "ESP" "fat32"
+else
+    create_partition $BIOS_BOOT_MB "BIOS" "none"
+fi
+
 create_partition $SWAP_MB "swap" "swap"
 create_partition $ROOT_MB "/" "xfs"
 create_partition $HOME_MB "/home" "xfs"
@@ -113,15 +138,26 @@ format_partition() {
     if [[ "$FS" == "swap" ]]; then
         mkswap "$PART"
         echo "Formatted $PART as swap"
+    elif [[ "$FS" == "fat32" ]]; then
+        mkfs.fat -F32 "$PART"
+        echo "Formatted $PART as FAT32 (ESP)"
     else
         mkfs.xfs -f "$PART"
         echo "Formatted $PART as xfs ($LABEL)"
     fi
 }
 
-format_partition "${DISK}2" "swap" "swap"
-format_partition "${DISK}3" "xfs" "/"
-format_partition "${DISK}4" "xfs" "/home"
+# Adjust partition numbering for ESP vs BIOS
+if [[ "$BOOT_MODE" == "UEFI" ]]; then
+    format_partition "${DISK}1" "fat32" "ESP"
+    format_partition "${DISK}2" "swap" "swap"
+    format_partition "${DISK}3" "xfs" "/"
+    format_partition "${DISK}4" "xfs" "/home"
+else
+    format_partition "${DISK}1" "none" "BIOS"
+    format_partition "${DISK}2" "swap" "swap"
+    format_partition "${DISK}3" "xfs" "/"
+    format_partition "${DISK}4" "xfs" "/home"
+fi
 
 echo -e "\n✅ GPT Partitioning and formatting complete!"
-
