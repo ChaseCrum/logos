@@ -97,13 +97,23 @@ parted -s "$DISK" mklabel gpt
 START_MB=1
 part_num=1
 
+get_partition_name() {
+    local disk="$1"
+    local number="$2"
+    if [[ "$disk" =~ nvme ]]; then
+        echo "${disk}p${number}"
+    else
+        echo "${disk}${number}"
+    fi
+}
+
 create_partition() {
     local SIZE_MB=$1
     local LABEL=$2
     local FS=$3
     local END_MB=$((START_MB + SIZE_MB - 1))
 
-    parted -s "$DISK" mkpart primary "${START_MB}MB" "${END_MB}MB"
+    parted -s "$DISK" mkpart primary "$FS" "${START_MB}MiB" "${END_MB}MiB"
 
     if [[ "$LABEL" == "BIOS" ]]; then
         parted -s "$DISK" set $part_num bios_grub on
@@ -122,7 +132,7 @@ else
     create_partition $BIOS_BOOT_MB "BIOS" "none"
 fi
 
-create_partition $SWAP_MB "swap" "swap"
+create_partition $SWAP_MB "swap" "linux-swap"
 create_partition $ROOT_MB "/" "xfs"
 create_partition $HOME_MB "/home" "xfs"
 
@@ -141,6 +151,8 @@ format_partition() {
     elif [[ "$FS" == "fat32" ]]; then
         mkfs.fat -F32 "$PART"
         echo "Formatted $PART as FAT32 (ESP)"
+    elif [[ "$FS" == "none" ]]; then
+        echo "Skipped formatting $PART (BIOS Boot)"
     else
         mkfs.xfs -f "$PART"
         echo "Formatted $PART as xfs ($LABEL)"
@@ -149,15 +161,16 @@ format_partition() {
 
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    format_partition "${DISK}1" "fat32" "ESP"
-    format_partition "${DISK}2" "swap" "swap"
-    format_partition "${DISK}3" "xfs" "/"
-    format_partition "${DISK}4" "xfs" "/home"
+    format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
+    format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
+    format_partition "$(get_partition_name "$DISK" 3)" "xfs" "/"
+    format_partition "$(get_partition_name "$DISK" 4)" "xfs" "/home"
 else
-    format_partition "${DISK}1" "none" "BIOS"
-    format_partition "${DISK}2" "swap" "swap"
-    format_partition "${DISK}3" "xfs" "/"
-    format_partition "${DISK}4" "xfs" "/home"
+    format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
+    format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
+    format_partition "$(get_partition_name "$DISK" 3)" "xfs" "/"
+    format_partition "$(get_partition_name "$DISK" 4)" "xfs" "/home"
 fi
 
 echo -e "\n✅ GPT Partitioning and formatting complete!"
+
