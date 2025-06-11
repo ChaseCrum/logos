@@ -113,7 +113,11 @@ create_partition() {
     local FS=$3
     local END_MB=$((START_MB + SIZE_MB - 1))
 
-    parted -s "$DISK" mkpart primary "$FS" "${START_MB}MiB" "${END_MB}MiB"
+    if [[ "$FS" == "none" ]]; then
+        parted -s "$DISK" mkpart primary "${START_MB}MiB" "${END_MB}MiB"
+    else
+        parted -s "$DISK" mkpart primary "$FS" "${START_MB}MiB" "${END_MB}MiB"
+    fi
 
     if [[ "$LABEL" == "BIOS" ]]; then
         parted -s "$DISK" set $part_num bios_grub on
