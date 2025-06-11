@@ -75,7 +75,14 @@ read -rp "Enter the full path of the disk to format (e.g., /dev/sdX): " DISK
 [[ -b "$DISK" ]] || { echo "Invalid disk: $DISK"; exit 1; }
 confirm "WARNING: This will erase all data on $DISK. Continue?"
 
-RAM_MB=$(get_ram_mb)
+echo_step "Getting RAM Size"
+read -rp "Enter RAM in MB (leave blank to auto-detect): " input_ram
+if [[ -n "$input_ram" ]]; then
+    RAM_MB=$input_ram
+else
+    RAM_MB=$(get_ram_mb)
+fi
+
 DISK_MB=$(get_disk_size_mb "$DISK")
 calculate_sizes $DISK_MB $RAM_MB
 confirm "Do you approve this layout and want to proceed with partitioning and formatting?"
