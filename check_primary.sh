@@ -73,12 +73,17 @@ echo_step "Choose Disk"
 read -rp "Enter the full path of the disk to format (e.g., /dev/sdX): " DISK
 
 [[ -b "$DISK" ]] || { echo "Invalid disk: $DISK"; exit 1; }
+
+read -rp "Run in dry-run mode (no partitioning or formatting will occur)? [y/N]: " dryrun_response
+DRY_RUN=false
+[[ "$dryrun_response" =~ ^[Yy]$ ]] && DRY_RUN=true
+
 confirm "WARNING: This will erase all data on $DISK. Continue?"
 
 echo_step "Getting RAM Size"
 read -rp "Enter RAM in MB (leave blank to auto-detect): " input_ram
 if [[ -n "$input_ram" ]]; then
-    RAM_MB=$input_ram
+    RAM_MB=$((input_ram + 0))
 else
     RAM_MB=$(get_ram_mb)
 fi
@@ -86,6 +91,11 @@ fi
 DISK_MB=$(get_disk_size_mb "$DISK")
 calculate_sizes $DISK_MB $RAM_MB
 confirm "Do you approve this layout and want to proceed with partitioning and formatting?"
+
+if [ "$DRY_RUN" = true ]; then
+    echo_step "Dry-run complete. No changes made."
+    exit 0
+fi
 
 echo_step "Creating Partition Table (MBR)"
 parted -s "$DISK" mklabel msdos
