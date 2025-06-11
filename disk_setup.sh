@@ -165,16 +165,33 @@ format_partition() {
 
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
+    ROOT_PART=$(get_partition_name "$DISK" 3)
+    HOME_PART=$(get_partition_name "$DISK" 4)
     format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
     format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
-    format_partition "$(get_partition_name "$DISK" 3)" "xfs" "/"
-    format_partition "$(get_partition_name "$DISK" 4)" "xfs" "/home"
+    format_partition "$ROOT_PART" "xfs" "/"
+    format_partition "$HOME_PART" "xfs" "/home"
 else
+    ROOT_PART=$(get_partition_name "$DISK" 3)
+    HOME_PART=$(get_partition_name "$DISK" 4)
     format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
     format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
-    format_partition "$(get_partition_name "$DISK" 3)" "xfs" "/"
-    format_partition "$(get_partition_name "$DISK" 4)" "xfs" "/home"
+    format_partition "$ROOT_PART" "xfs" "/"
+    format_partition "$HOME_PART" "xfs" "/home"
 fi
 
 echo -e "\n✅ GPT Partitioning and formatting complete!"
+
+# === Mounting for LFS Setup ===
+export LFS=/mnt/lfs
+umask 022
+sleep 3
+echo "The value of \$LFS is: $LFS"
+sleep 3
+echo "The umask value is: $(umask)"
+sleep 3
+mkdir -pv $LFS
+mount -v -t xfs "$ROOT_PART" $LFS
+mkdir -pv $LFS/home
+mount -v -t xfs "$HOME_PART" $LFS/home
 
