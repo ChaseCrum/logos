@@ -195,3 +195,6 @@ mount -v -t xfs "$ROOT_PART" $LFS
 mkdir -pv $LFS/home
 mount -v -t xfs "$HOME_PART" $LFS/home
 
+chown root:root $LFS
+chmod 755 $LFS
+/sbin/swapon -v "$SWAP_PART"
