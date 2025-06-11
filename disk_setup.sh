@@ -163,19 +163,26 @@ format_partition() {
     fi
 }
 
+# Set partition device variables
+SWAP_PART=$(get_partition_name "$DISK" 2)
+ROOT_PART=$(get_partition_name "$DISK" 3)
+HOME_PART=$(get_partition_name "$DISK" 4)
+
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
     ROOT_PART=$(get_partition_name "$DISK" 3)
     HOME_PART=$(get_partition_name "$DISK" 4)
+    SWAP_PART=$(get_partition_name "$DISK" 2)
     format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
-    format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
+    format_partition "$SWAP_PART" "swap" "swap"
     format_partition "$ROOT_PART" "xfs" "/"
     format_partition "$HOME_PART" "xfs" "/home"
 else
     ROOT_PART=$(get_partition_name "$DISK" 3)
     HOME_PART=$(get_partition_name "$DISK" 4)
+    SWAP_PART=$(get_partition_name "$DISK" 2)
     format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
-    format_partition "$(get_partition_name "$DISK" 2)" "swap" "swap"
+    format_partition "$SWAP_PART" "swap" "swap"
     format_partition "$ROOT_PART" "xfs" "/"
     format_partition "$HOME_PART" "xfs" "/home"
 fi
@@ -194,7 +201,7 @@ mkdir -pv $LFS
 mount -v -t xfs "$ROOT_PART" $LFS
 mkdir -pv $LFS/home
 mount -v -t xfs "$HOME_PART" $LFS/home
-
 chown root:root $LFS
 chmod 755 $LFS
 /sbin/swapon -v "$SWAP_PART"
+
