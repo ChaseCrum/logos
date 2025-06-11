@@ -83,10 +83,16 @@ confirm "WARNING: This will erase all data on $DISK. Continue?"
 echo_step "Getting RAM Size"
 read -rp "Enter RAM in MB (leave blank to auto-detect): " input_ram
 if [[ -n "$input_ram" ]]; then
-    RAM_MB=$((input_ram + 0))
+    if [[ "$input_ram" =~ ^[0-9]+$ ]]; then
+        RAM_MB=$input_ram
+    else
+        echo "Invalid RAM value. Must be a number in MB."; exit 1;
+    fi
 else
     RAM_MB=$(get_ram_mb)
 fi
+
+echo "Using RAM_MB = $RAM_MB → Swap size will be $((RAM_MB * 2)) MB"
 
 DISK_MB=$(get_disk_size_mb "$DISK")
 calculate_sizes $DISK_MB $RAM_MB
