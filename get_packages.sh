@@ -1,16 +1,18 @@
 #!/bin/bash
 
-# Validate LFS environment variable
-if [[ -z "$LFS" ]]; then
-  echo "ERROR: LFS environment variable not set."
-  echo "Please set it with: export LFS=/mnt/lfs (or your correct path)"
-  exit 1
-fi
+# === Set LFS Environment ===
+export LFS=/mnt/lfs
 
+# Create LFS directories and set permissions
+mkdir -pv $LFS/sources
+chmod -v a+wt $LFS/sources
+
+# === Constants ===
 PKG_LIST="needed_packages.txt"
 SUMMARY="download_summary.txt"
 DOWNLOAD_DIR="$LFS/sources"
 
+# Ensure download directory exists and is writable
 mkdir -p "$DOWNLOAD_DIR"
 cd "$DOWNLOAD_DIR" || exit 1
 
