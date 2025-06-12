@@ -4,7 +4,7 @@
 export LFS=/mnt/lfs
 
 # === Working Directory & Summary ===
-DOWNLOAD_DIR=\"$LFS/sources\"
+DOWNLOAD_DIR="$LFS/sources"
 SUMMARY="$LFS/patch_download_summary.txt"
 
 mkdir -p "$DOWNLOAD_DIR"
