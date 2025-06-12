@@ -65,7 +65,7 @@ echo "$packages" | while IFS='|' read -r name url md5; do
   fi
 
   echo "→ Downloading $filename ..."
-  if curl -LO "$url"; then
+  if wget -q --show-progress "$url"; then
     actual_md5=$(md5sum "$filename" | awk '{print $1}')
     if [[ "$actual_md5" == "$md5" ]]; then
       log_status "$name" "Downloaded" "Matched"
