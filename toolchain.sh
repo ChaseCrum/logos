@@ -91,4 +91,4 @@ else
     fi
 fi
 
-echo "$LFS variable is set to: "$LFS
+echo "LFS variable is set to: "$LFS
