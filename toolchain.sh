@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define LFS root
+export LFS=/mnt/lfs
+
 echo "Starting environment checks..."
 
 # Track failed conditions and fixes
@@ -88,3 +91,4 @@ else
     fi
 fi
 
+echo "$LFS variable is set to: "$LFS
