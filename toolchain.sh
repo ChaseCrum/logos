@@ -5,6 +5,8 @@ export LFS=/mnt/lfs
 
 echo "Starting environment checks..."
 
+sleep 3
+
 # Track failed conditions and fixes
 declare -a fixes
 declare -a messages
@@ -91,4 +93,5 @@ else
     fi
 fi
 
+sleep 3
 echo "LFS variable is set to: "$LFS
