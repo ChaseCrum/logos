@@ -1,54 +1,70 @@
 #!/bin/bash
 set -e
 
+# Environment setup
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
 export PATH="$LFS/tools/bin:$PATH"
 
+# Ensure sources dir exists
+mkdir -pv $LFS/sources
+chmod a+wt $LFS/sources
+
+# Function to run commands as the lfs user inside $LFS/sources
+run_as_lfs() {
+    sudo -u lfs bash -c "cd $LFS/sources && $*"
+}
+
 cd $LFS/sources
 
 # -------------------------------
-# Binutils
+# Binutils Pass 1
 # -------------------------------
-sudo -u lfs tar -xf binutils-*.tar.xz
-mkdir -v binutils-build
-cd binutils-build
+run_as_lfs "tar -xf binutils-*.tar.xz"
+mkdir -v $LFS/sources/binutils-build
+cd $LFS/sources/binutils-build
+
 ../binutils-*/configure --prefix=$LFS/tools \
     --with-sysroot=$LFS \
     --target=$LFS_TGT   \
     --disable-nls       \
     --enable-gprofng=no \
     --disable-werror
+
 make -j$(nproc)
 make install
-cd ..
-rm -rf binutils-*/
+
+cd $LFS/sources
+rm -rf binutils-*/ binutils-build/
 
 # -------------------------------
-# GCC
+# GCC Pass 1 + Dependencies
 # -------------------------------
-sudo -u lfs tar -xf gcc-*.tar.xz
-cd gcc-*/
+run_as_lfs "tar -xf gcc-*.tar.xz"
+cd $LFS/sources/gcc-*/
 
+# Fix lib64 path for x86_64
 case $(uname -m) in
   x86_64)
     sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
   ;;
 esac
 
-# -------------------------------
-# Dependencies for GCC
-# -------------------------------
-sudo -u lfs tar -xf mpfr-*.tar.xz
-sudo mv -v mpfr-* mpfr
-sudo -u lfs tar -xf gmp-*.tar.xz
-sudo mv -v gmp-* gmp
-sudo -u lfs tar -xf mpc-*.tar.gz
-sudo mv -v mpc-* mpc
+# MPFR
+run_as_lfs "tar -xf mpfr-*.tar.xz"
+mv -v mpfr-* mpfr
 
-cd ..
-mkdir -v gcc-build
-cd gcc-build
+# GMP
+run_as_lfs "tar -xf gmp-*.tar.xz"
+mv -v gmp-* gmp
+
+# MPC
+run_as_lfs "tar -xf mpc-*.tar.gz"
+mv -v mpc-* mpc
+
+# GCC build
+mkdir -v $LFS/sources/gcc-build
+cd $LFS/sources/gcc-build
 
 ../gcc-*/configure --target=$LFS_TGT \
     --prefix=$LFS/tools              \
@@ -71,14 +87,8 @@ cd gcc-build
 
 make -j$(nproc)
 make install
-cd ..
-rm -rf gcc-*/
 
-# -------------------------------
-# Cleanup for dependencies
-# -------------------------------
-rm -rf mpfr-*/
-rm -rf gmp-*/
-rm -rf mpc-*/
+cd $LFS/sources
+rm -rf gcc-*/ gcc-build/ mpfr/ gmp/ mpc/
 
-echo "✅ Toolchain build complete."
+echo "✅ Toolchain build completed successfully in \$LFS/sources."
