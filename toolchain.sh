@@ -124,9 +124,9 @@ make install
 cd $LFS/sources
 
 sudo -u lfs tar -xf mpfr-*.tar.xz
-sudo mv -v mpfr-* mpfr
+sudo mv -v mpfr-4.2.1 mpfr
 sudo -u lfs tar -xf gmp-*.tar.xz
-sudo mv -v gmp-* gmp
+sudo mv -v gmp-6.3.0 gmp
 sudo -u lfs tar -xf mpc-*.tar.gz
-sudo mv -v mpc-* mpc
+sudo mv -v mpc-1.3.1 mpc
 
