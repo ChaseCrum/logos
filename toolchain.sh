@@ -130,3 +130,11 @@ sudo mv -v gmp-6.3.0 gmp
 sudo -u lfs tar -xf mpc-*.tar.gz
 sudo mv -v mpc-1.3.1 mpc
 
+# On x86_64 hosts, set the default directory name for 64-bit libraries to “lib”:
+case $(uname -m) in
+x86_64)
+sed -e '/m64=/s/lib64/lib/' \
+-i.orig gcc/config/i386/t-linux64
+;;
+esac
+
