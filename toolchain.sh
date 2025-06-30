@@ -96,6 +96,8 @@ fi
 sleep 3
 echo "LFS variable is set to: "$LFS
 
+# build binutils
+
 cd $LFS/sources
 sudo -u lfs tar -xf binutils-*.tar.xz
 cd binutils-*/
@@ -117,3 +119,14 @@ make
 
 # Install
 make install
+
+# build GCC pass 1
+cd $LFS/sources
+
+sudo -u lfs tar -xf mpfr-*.tar.xz
+sudo mv -v mpfr-* mpfr
+sudo -u lfs tar -xf gmp-*.tar.xz
+sudo mv -v gmp-* gmp
+sudo -u lfs tar -xf mpc-*.tar.gz
+sudo mv -v mpc-* mpc
+
