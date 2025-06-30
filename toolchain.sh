@@ -1,140 +1,84 @@
 #!/bin/bash
+set -e
 
-# Define LFS root
 export LFS=/mnt/lfs
-
-echo "Starting environment checks..."
-
-sleep 3
-
-# Track failed conditions and fixes
-declare -a fixes
-declare -a messages
-
-# 1. Check if the current shell is bash
-if [ -n "$BASH_VERSION" ]; then
-    echo "[PASS] Bash is the current shell in use."
-else
-    echo "[FAIL] Bash is NOT the current shell in use."
-    messages+=("Shell is not Bash")
-    fixes+=("exec /bin/bash")
-fi
-
-# 2. Check if /bin/sh is a symlink to bash
-if [ -L /bin/sh ]; then
-    sh_target=$(readlink -f /bin/sh)
-    if [[ "$sh_target" == *bash* ]]; then
-        echo "[PASS] /bin/sh is a symbolic link to bash ($sh_target)."
-    else
-        echo "[FAIL] /bin/sh points to $sh_target, not bash."
-        messages+=("/bin/sh is not linked to bash")
-        fixes+=("ln -sf /bin/bash /bin/sh")
-    fi
-else
-    echo "[FAIL] /bin/sh is not a symbolic link."
-    messages+=("/bin/sh is not a symlink at all")
-    fixes+=("rm -f /bin/sh && ln -s /bin/bash /bin/sh")
-fi
-
-# 3. Check if /usr/bin/awk is a symlink to gawk
-if [ -L /usr/bin/awk ]; then
-    awk_target=$(readlink -f /usr/bin/awk)
-    if [[ "$awk_target" == *gawk* ]]; then
-        echo "[PASS] /usr/bin/awk is a symbolic link to gawk ($awk_target)."
-    else
-        echo "[FAIL] /usr/bin/awk points to $awk_target, not gawk."
-        messages+=("/usr/bin/awk is not linked to gawk")
-        fixes+=("ln -sf /usr/bin/gawk /usr/bin/awk")
-    fi
-else
-    echo "[FAIL] /usr/bin/awk is not a symbolic link."
-    messages+=("/usr/bin/awk is not a symlink at all")
-    fixes+=("rm -f /usr/bin/awk && ln -s /usr/bin/gawk /usr/bin/awk")
-fi
-
-# 4. Check if /usr/bin/yacc is a symlink to bison or a wrapper script
-if [ -L /usr/bin/yacc ]; then
-    yacc_target=$(readlink -f /usr/bin/yacc)
-    if [[ "$yacc_target" == *bison* ]]; then
-        echo "[PASS] /usr/bin/yacc is a symbolic link to bison ($yacc_target)."
-    else
-        echo "[FAIL] /usr/bin/yacc points to $yacc_target, not bison."
-        messages+=("/usr/bin/yacc is a symlink but not to bison")
-        fixes+=("ln -sf /usr/bin/bison /usr/bin/yacc")
-    fi
-elif grep -q bison /usr/bin/yacc 2>/dev/null; then
-    echo "[PASS] /usr/bin/yacc is a script that calls bison."
-else
-    echo "[FAIL] /usr/bin/yacc is neither a symlink nor a bison-calling script."
-    messages+=("/usr/bin/yacc is not set up correctly")
-    fixes+=("echo -e '#!/bin/bash\nexec bison \"\$@\"' > /usr/bin/yacc && chmod +x /usr/bin/yacc")
-fi
-
-# Summary and fix prompt
-if [ ${#fixes[@]} -eq 0 ]; then
-    echo "✅ All checks passed. No changes needed."
-else
-    echo -e "\nThe following issues were found:"
-    for msg in "${messages[@]}"; do
-        echo " - $msg"
-    done
-
-    read -p $'\nDo you want to apply all suggested fixes? [y/N]: ' answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "Applying fixes..."
-        for cmd in "${fixes[@]}"; do
-            echo "→ $cmd"
-            eval "$cmd" || { echo "[ERROR] Failed to execute: $cmd"; exit 1; }
-        done
-        echo "✅ All issues corrected."
-    else
-        echo "No changes made. Exiting."
-        exit 1
-    fi
-fi
-
-sleep 3
-echo "LFS variable is set to: "$LFS
-
-# build binutils
+export LFS_TGT=$(uname -m)-lfs-linux-gnu
+export PATH="$LFS/tools/bin:$PATH"
 
 cd $LFS/sources
+
+# -------------------------------
+# Binutils
+# -------------------------------
 sudo -u lfs tar -xf binutils-*.tar.xz
-cd binutils-*/
-mkdir -v build
-cd build
-
-# Configure
-../configure --prefix=$LFS/tools \
-             --with-sysroot=$LFS \
-             --target=$LFS_TGT   \
-             --disable-nls       \
-             --enable-gprofng=no \
-             --disable-werror    \
-             --enable-new-dtags  \
-             --enable-default-hash-style=gnu
-
-# Build
-make
-
-# Install
+mkdir -v binutils-build
+cd binutils-build
+../binutils-*/configure --prefix=$LFS/tools \
+    --with-sysroot=$LFS \
+    --target=$LFS_TGT   \
+    --disable-nls       \
+    --enable-gprofng=no \
+    --disable-werror
+make -j$(nproc)
 make install
+cd ..
+rm -rf binutils-*/
 
-# build GCC pass 1
-cd $LFS/sources
+# -------------------------------
+# GCC
+# -------------------------------
+sudo -u lfs tar -xf gcc-*.tar.xz
+cd gcc-*/
 
-sudo -u lfs tar -xf mpfr-*.tar.xz
-sudo mv -v mpfr-4.2.1 mpfr
-sudo -u lfs tar -xf gmp-*.tar.xz
-sudo mv -v gmp-6.3.0 gmp
-sudo -u lfs tar -xf mpc-*.tar.gz
-sudo mv -v mpc-1.3.1 mpc
-
-# On x86_64 hosts, set the default directory name for 64-bit libraries to “lib”:
 case $(uname -m) in
-x86_64)
-sed -e '/m64=/s/lib64/lib/' \
--i.orig gcc/config/i386/t-linux64
-;;
+  x86_64)
+    sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
+  ;;
 esac
 
+# -------------------------------
+# Dependencies for GCC
+# -------------------------------
+sudo -u lfs tar -xf mpfr-*.tar.xz
+sudo mv -v mpfr-* mpfr
+sudo -u lfs tar -xf gmp-*.tar.xz
+sudo mv -v gmp-* gmp
+sudo -u lfs tar -xf mpc-*.tar.gz
+sudo mv -v mpc-* mpc
+
+cd ..
+mkdir -v gcc-build
+cd gcc-build
+
+../gcc-*/configure --target=$LFS_TGT \
+    --prefix=$LFS/tools              \
+    --with-glibc-version=2.39        \
+    --with-sysroot=$LFS              \
+    --with-newlib                    \
+    --without-headers                \
+    --enable-default-pie=no          \
+    --enable-default-ssp=no          \
+    --disable-nls                    \
+    --disable-shared                 \
+    --disable-multilib               \
+    --disable-threads                \
+    --disable-libatomic              \
+    --disable-libgomp                \
+    --disable-libquadmath            \
+    --disable-libssp                 \
+    --disable-libvtv                 \
+    --enable-languages=c,c++
+
+make -j$(nproc)
+make install
+cd ..
+rm -rf gcc-*/
+
+# -------------------------------
+# Cleanup for dependencies
+# -------------------------------
+rm -rf mpfr-*/
+rm -rf gmp-*/
+rm -rf mpc-*/
+
+echo "✅ Toolchain build complete."
