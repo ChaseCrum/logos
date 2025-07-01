@@ -48,7 +48,6 @@ MPFR_DIR=${MPFR_SRC%.tar.*}
 GMP_DIR=${GMP_SRC%.tar.*}
 MPC_DIR=${MPC_SRC%.tar.*}
 
-# Extract and move dependencies into GCC
 sudo su - lfs -c "cd ~/sources && tar -xf $GCC_SRC"
 sudo su - lfs -c "cd ~/sources && tar -xf $MPFR_SRC && mv -v $MPFR_DIR $GCC_DIR/mpfr"
 sudo su - lfs -c "cd ~/sources && tar -xf $GMP_SRC && mv -v $GMP_DIR $GCC_DIR/gmp"
