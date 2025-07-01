@@ -11,3 +11,5 @@ sleep 3
 sudo ./groundwork.sh
 sleep 3
 sudo ./toolchain.sh
+sleep 3
+sudo ./toolchain2.sh
