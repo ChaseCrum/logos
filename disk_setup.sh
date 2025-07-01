@@ -1,220 +1,71 @@
 #!/bin/bash
-
 set -e
 
-clear
-echo -e "\n=== Detecting Disks ==="
-lsblk -dno NAME,SIZE,TYPE | grep disk
+echo -e "\n=== Linux From Scratch Disk Setup ==="
 
-echo -e "\n=== Choose Disk ==="
-echo -n "Enter the full path of the disk to format (e.g., /dev/sdX): "
-read DISK
+# Prompt user for disk to use
+echo -e "\nAvailable disks:\n"
+lsblk -dpno NAME,SIZE | grep -v loop
+read -rp $'\nEnter the full path of the disk to use (e.g. /dev/sda): ' DISK
 
-# ✅ Ensure the user input is valid
-if [[ -z "$DISK" || ! -b "$DISK" ]]; then
-    echo "❌ ERROR: Invalid disk. You entered: '$DISK'"
+if [[ ! -b "$DISK" ]]; then
+    echo "❌ ERROR: Invalid disk: $DISK"
     exit 1
 fi
 
-echo -n "Run in dry-run mode (no partitioning or formatting will occur)? [y/N]: "
-read DRY_RUN
+echo -e "\nPartitioning $DISK..."
 
-if [[ "$DRY_RUN" =~ ^[Yy]$ ]]; then
-    DRY_RUN=true
-else
-    DRY_RUN=false
-fi
+# Create partition table and partitions
+parted -s "$DISK" mklabel gpt \
+  mkpart primary 1MiB 3MiB \
+  set 1 bios_grub on \
+  mkpart primary linux-swap 3MiB 8195MiB \
+  mkpart primary xfs 8195MiB 80% \
+  mkpart primary xfs 80% 100%
 
-echo -e "WARNING: This will erase all data on $DISK. Continue? [y/N]: "
-read CONFIRM
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 1
-fi
-
-# Get RAM size
-echo -e "\n=== Getting RAM Size ==="
-echo -n "Enter RAM in MB (leave blank to auto-detect): "
-read RAM_MB
-
-if [[ -z "$RAM_MB" ]]; then
-    RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-    RAM_MB=$((RAM_KB / 1024))
-fi
-
-SWAP_MB=$((RAM_MB * 2))
-ROOT_MB=75000
-ESP_MB=512
-BIOS_BOOT_MB=2
-
-# Detect firmware type
-if [ -d /sys/firmware/efi ]; then
-    BOOT_MODE="UEFI"
-else
-    BOOT_MODE="BIOS"
-fi
-
-echo "Detected Boot Mode: $BOOT_MODE"
-
-# Get total disk size in MB
-total_mb=$(lsblk -b -dn -o SIZE "$DISK")
-total_mb=$((total_mb / 1024 / 1024))
-
-# Calculate used and /home
-if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    used_mb=$((ESP_MB + SWAP_MB + ROOT_MB))
-else
-    used_mb=$((BIOS_BOOT_MB + SWAP_MB + ROOT_MB))
-fi
-
-HOME_MB=$((total_mb - used_mb))
-
-# Show layout
-echo -e "\nPlanned Partition Layout (in MB):"
-if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    echo "1. EFI System : $ESP_MB"
-else
-    echo "1. BIOS Boot  : $BIOS_BOOT_MB"
-fi
-echo "2. swap       : $SWAP_MB"
-echo "3. /          : $ROOT_MB"
-echo "4. /home      : $HOME_MB"
-echo "Total Used   : $((used_mb)) / $total_mb MB"
-
-echo -n "Do you approve this layout and want to proceed with partitioning and formatting? [y/N]: "
-read APPROVE
-if [[ ! "$APPROVE" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 1
-fi
-
-if $DRY_RUN; then
-    echo "Dry-run mode enabled. No changes made."
-    exit 0
-fi
-
-# Partitioning
-echo -e "\n=== Partitioning Disk (GPT) ==="
-sgdisk --zap-all "$DISK" || true
-dd if=/dev/zero of="$DISK" bs=512 count=2048 status=none
-wipefs -a "$DISK"
-parted -s "$DISK" mklabel gpt
-
-START_MB=1
-part_num=1
-
+# Partition variables
 get_partition_name() {
     local disk="$1"
-    local number="$2"
+    local num="$2"
+    # Use 'p' for nvme devices (e.g., /dev/nvme0n1p1)
     if [[ "$disk" =~ nvme ]]; then
-        echo "${disk}p${number}"
+        echo "${disk}p${num}"
     else
-        echo "${disk}${number}"
+        echo "${disk}${num}"
     fi
 }
 
-create_partition() {
-    local SIZE_MB=$1
-    local LABEL=$2
-    local FS=$3
-    local END_MB=$((START_MB + SIZE_MB - 1))
-
-    if [[ "$FS" == "none" ]]; then
-        parted -s "$DISK" mkpart primary "${START_MB}MiB" "${END_MB}MiB"
-    else
-        parted -s "$DISK" mkpart primary "$FS" "${START_MB}MiB" "${END_MB}MiB"
-    fi
-
-    if [[ "$LABEL" == "BIOS" ]]; then
-        parted -s "$DISK" set $part_num bios_grub on
-    elif [[ "$LABEL" == "ESP" ]]; then
-        parted -s "$DISK" set $part_num esp on
-    fi
-
-    echo "Created $LABEL from $START_MB MB to $END_MB MB"
-    START_MB=$((END_MB + 1))
-    part_num=$((part_num + 1))
-}
-
-if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    create_partition $ESP_MB "ESP" "fat32"
-else
-    create_partition $BIOS_BOOT_MB "BIOS" "none"
-fi
-
-create_partition $SWAP_MB "swap" "linux-swap"
-create_partition $ROOT_MB "/" "xfs"
-create_partition $HOME_MB "/home" "xfs"
-
-echo -e "\n=== Formatting Partitions ==="
-partprobe "$DISK"
-sleep 2
-
-format_partition() {
-    local PART=$1
-    local FS=$2
-    local LABEL=$3
-
-    if [[ "$FS" == "swap" ]]; then
-        mkswap "$PART"
-        echo "Formatted $PART as swap"
-    elif [[ "$FS" == "fat32" ]]; then
-        mkfs.fat -F32 "$PART"
-        echo "Formatted $PART as FAT32 (ESP)"
-    elif [[ "$FS" == "none" ]]; then
-        echo "Skipped formatting $PART (BIOS Boot)"
-    else
-        mkfs.xfs -f "$PART"
-        echo "Formatted $PART as xfs ($LABEL)"
-    fi
-}
-
-# Set partition device variables
 SWAP_PART=$(get_partition_name "$DISK" 2)
 ROOT_PART=$(get_partition_name "$DISK" 3)
 HOME_PART=$(get_partition_name "$DISK" 4)
 
-# Adjust partition numbering for ESP vs BIOS
-if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
-else
-    format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
-fi
+echo -e "\nFormatting partitions..."
+mkfs.xfs -f "$ROOT_PART"
+mkfs.xfs -f "$HOME_PART"
+mkswap "$SWAP_PART"
 
-format_partition "$SWAP_PART" "swap" "swap"
-format_partition "$ROOT_PART" "xfs" "/"
-format_partition "$HOME_PART" "xfs" "/home"
-
-echo -e "\n✅ GPT Partitioning and formatting complete!"
-
-# === Mounting for LFS Setup ===
+echo -e "\nMounting partitions..."
 export LFS=/mnt/lfs
 umask 022
-sleep 3
-echo "The value of \$LFS is: $LFS"
-sleep 3
-echo "The umask value is: $(umask)"
-sleep 3
-
-# ✅ Ensure ROOT_PART is valid before mounting
-if [[ -z "$ROOT_PART" || ! -b "$ROOT_PART" ]]; then
-    echo "❌ ERROR: ROOT_PART is not valid. Got: '$ROOT_PART'"
-    exit 1
-fi
-
-# ✅ Attempt to mount the root partition
 mkdir -pv $LFS
-if ! mount -v -t xfs "$ROOT_PART" $LFS; then
+
+if ! mount -v -t xfs "$ROOT_PART" "$LFS"; then
     echo "❌ ERROR: Failed to mount $ROOT_PART to $LFS"
+    dmesg | tail -n10
     exit 1
 fi
 
-# ✅ Ensure sources and tools go to the mounted LFS, not Live CD
-mkdir -pv $LFS/sources $LFS/tools
+mkdir -pv $LFS/sources $LFS/tools $LFS/home
 chown -v lfs:lfs $LFS/sources $LFS/tools
 
-mkdir -pv $LFS/home
-mount -v -t xfs "$HOME_PART" $LFS/home
-chown root:root $LFS
-chmod 755 $LFS
-/sbin/swapon -v "$SWAP_PART"
+if ! mount -v -t xfs "$HOME_PART" "$LFS/home"; then
+    echo "❌ ERROR: Failed to mount $HOME_PART to $LFS/home"
+    dmesg | tail -n10
+    exit 1
+fi
+
+swapon "$SWAP_PART"
+
+echo -e "\n✅ Disk setup complete!"
+lsblk -f | grep "$(basename "$DISK")"
+mount | grep -E 'lfs|vda|'"$(basename "$DISK")"
