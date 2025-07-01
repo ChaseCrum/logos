@@ -116,7 +116,11 @@ EOF
 
 # Clean up archive as root
 echo "🧹 Cleaning up binutils archive..."
-rm -f /mnt/lfs/sources/binutils-*.tar.*
+if rm -f /mnt/lfs/sources/binutils-*.tar.* 2>/dev/null; then
+  echo "✅ Archive cleanup complete."
+else
+  echo "⚠️ Archive could not be deleted. Check ownership or permissions on /mnt/lfs/sources"
+fi
 
 echo "✅ toolchain2.sh completed."
 exit 0
