@@ -69,6 +69,8 @@ echo "🔧 Building Binutils (Pass 1)"
 sudo su - lfs << 'EOF'
 set -e
 
+export LFS=/mnt/lfs
+
 cd $LFS/sources
 tar -xf binutils-*.tar.*
 cd binutils-*/
