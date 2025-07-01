@@ -57,6 +57,26 @@ if ! $all_passed; then
   fi
 fi
 
+# Check if gcc works on host
+if command -v gcc >/dev/null 2>&1; then
+  echo -n "[INFO] Testing host GCC compiler... "
+  echo 'int main() { return 0; }' > test.c
+  gcc test.c -o test.out >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "✅ Host GCC compiler works."
+    rm -f test.c test.out
+  else
+    echo "❌ Host GCC compiler failed to compile."
+    rm -f test.c
+    echo "Please ensure GCC and build tools are installed on your host system."
+    exit 1
+  fi
+else
+  echo "❌ GCC is not installed on the host system."
+  echo "Please install GCC and development tools before proceeding."
+  exit 1
+fi
+
 # Set LFS variable
 export LFS=/mnt/lfs
 echo "LFS variable is set to: $LFS"
@@ -70,6 +90,7 @@ sudo su - lfs << 'EOF'
 set -e
 
 export LFS=/mnt/lfs
+export PATH=$LFS/tools/bin:$PATH
 
 cd $LFS/sources
 tar -xf binutils-*.tar.*
