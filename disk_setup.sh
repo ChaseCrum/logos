@@ -174,24 +174,16 @@ SWAP_PART=$(get_partition_name "$DISK" 2)
 ROOT_PART=$(get_partition_name "$DISK" 3)
 HOME_PART=$(get_partition_name "$DISK" 4)
 
-# ✅ Ensure ROOT_PART is valid before mounting
-if [[ -z "$ROOT_PART" || ! -b "$ROOT_PART" ]]; then
-    echo "❌ ERROR: ROOT_PART is not valid. Got: '$ROOT_PART'"
-    exit 1
-fi
-
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
     format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
-    format_partition "$SWAP_PART" "swap" "swap"
-    format_partition "$ROOT_PART" "xfs" "/"
-    format_partition "$HOME_PART" "xfs" "/home"
 else
     format_partition "$(get_partition_name "$DISK" 1)" "none" "BIOS"
-    format_partition "$SWAP_PART" "swap" "swap"
-    format_partition "$ROOT_PART" "xfs" "/"
-    format_partition "$HOME_PART" "xfs" "/home"
 fi
+
+format_partition "$SWAP_PART" "swap" "swap"
+format_partition "$ROOT_PART" "xfs" "/"
+format_partition "$HOME_PART" "xfs" "/home"
 
 echo -e "\n✅ GPT Partitioning and formatting complete!"
 
@@ -203,8 +195,19 @@ echo "The value of \$LFS is: $LFS"
 sleep 3
 echo "The umask value is: $(umask)"
 sleep 3
+
+# ✅ Ensure ROOT_PART is valid before mounting
+if [[ -z "$ROOT_PART" || ! -b "$ROOT_PART" ]]; then
+    echo "❌ ERROR: ROOT_PART is not valid. Got: '$ROOT_PART'"
+    exit 1
+fi
+
+# ✅ Attempt to mount the root partition
 mkdir -pv $LFS
-mount -v -t xfs "$ROOT_PART" $LFS
+if ! mount -v -t xfs "$ROOT_PART" $LFS; then
+    echo "❌ ERROR: Failed to mount $ROOT_PART to $LFS"
+    exit 1
+fi
 
 # ✅ Ensure sources and tools go to the mounted LFS, not Live CD
 mkdir -pv $LFS/sources $LFS/tools
