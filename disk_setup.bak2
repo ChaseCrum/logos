@@ -10,12 +10,6 @@ echo -e "\n=== Choose Disk ==="
 echo -n "Enter the full path of the disk to format (e.g., /dev/sdX): "
 read DISK
 
-# ✅ Ensure the user input is valid
-if [[ -z "$DISK" || ! -b "$DISK" ]]; then
-    echo "❌ ERROR: Invalid disk. You entered: '$DISK'"
-    exit 1
-fi
-
 echo -n "Run in dry-run mode (no partitioning or formatting will occur)? [y/N]: "
 read DRY_RUN
 
@@ -174,12 +168,6 @@ SWAP_PART=$(get_partition_name "$DISK" 2)
 ROOT_PART=$(get_partition_name "$DISK" 3)
 HOME_PART=$(get_partition_name "$DISK" 4)
 
-# ✅ Ensure ROOT_PART is valid before mounting
-if [[ -z "$ROOT_PART" || ! -b "$ROOT_PART" ]]; then
-    echo "❌ ERROR: ROOT_PART is not valid. Got: '$ROOT_PART'"
-    exit 1
-fi
-
 # Adjust partition numbering for ESP vs BIOS
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
     format_partition "$(get_partition_name "$DISK" 1)" "fat32" "ESP"
@@ -206,7 +194,7 @@ sleep 3
 mkdir -pv $LFS
 mount -v -t xfs "$ROOT_PART" $LFS
 
-# ✅ Ensure sources and tools go to the mounted LFS, not Live CD
+# ✅ ADDED: Ensure sources and tools go to the mounted LFS, not Live CD
 mkdir -pv $LFS/sources $LFS/tools
 chown -v lfs:lfs $LFS/sources $LFS/tools
 
