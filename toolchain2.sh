@@ -111,8 +111,12 @@ make -j$(nproc)
 make install
 
 cd $LFS/sources
-rm -rf binutils-*
+rm -rf binutils-*/
 EOF
+
+# Clean up archive as root
+echo "🧹 Cleaning up binutils archive..."
+rm -f /mnt/lfs/sources/binutils-*.tar.*
 
 echo "✅ toolchain2.sh completed."
 exit 0
