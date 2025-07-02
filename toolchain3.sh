@@ -3,11 +3,11 @@ set -e
 
 echo "🔧 Building GCC (Pass 1)"
 
-export LFS=/mnt/lfs
-export LFS_TGT=$(uname -m)-lfs-linux-gnu
-
 sudo su - lfs << EOF
 set -e
+
+export LFS=/mnt/lfs
+export LFS_TGT=\$(uname -m)-lfs-linux-gnu
 
 cd \$LFS/sources
 tar -xf gcc-*.tar.* || { echo "[ERROR] Failed to extract GCC"; exit 1; }
@@ -30,25 +30,25 @@ mkdir -v build
 cd build
 
 # Configure the build
-../configure \
-    --target=\$LFS_TGT \
-    --prefix=\$LFS/tools \
-    --with-glibc-version=2.41 \
-    --with-sysroot=\$LFS \
-    --with-newlib \
-    --without-headers \
-    --enable-default-pie \
-    --enable-default-ssp \
-    --disable-nls \
-    --disable-shared \
-    --disable-multilib \
-    --disable-threads \
-    --disable-libatomic \
-    --disable-libgomp \
-    --disable-libquadmath \
-    --disable-libssp \
-    --disable-libvtv \
-    --disable-libstdcxx \
+../configure \\
+    --target=\$LFS_TGT \\
+    --prefix=\$LFS/tools \\
+    --with-glibc-version=2.41 \\
+    --with-sysroot=\$LFS \\
+    --with-newlib \\
+    --without-headers \\
+    --enable-default-pie \\
+    --enable-default-ssp \\
+    --disable-nls \\
+    --disable-shared \\
+    --disable-multilib \\
+    --disable-threads \\
+    --disable-libatomic \\
+    --disable-libgomp \\
+    --disable-libquadmath \\
+    --disable-libssp \\
+    --disable-libvtv \\
+    --disable-libstdcxx \\
     --enable-languages=c,c++
 
 make
@@ -57,7 +57,7 @@ make install
 # Create the limits.h header
 cd ..
 cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \\
-  \`dirname \$(${LFS_TGT}-gcc -print-libgcc-file-name)\`/include/limits.h
+  \`dirname \$\(${LFS_TGT}-gcc -print-libgcc-file-name)\`/include/limits.h
 
 EOF
 
