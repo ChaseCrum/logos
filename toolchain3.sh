@@ -63,10 +63,11 @@ cd build
 make
 make install
 
-# Create limits.h header
+# Create limits.h header safely
 cd ..
-cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \\
-  \`dirname \$\(${LFS_TGT}-gcc -print-libgcc-file-name\)\`/include/limits.h
+LIMITS_DIR=\$(dirname \$(${LFS_TGT}-gcc -print-libgcc-file-name))/include
+mkdir -p \$LIMITS_DIR
+cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \$LIMITS_DIR/limits.h
 
 EOF
 
