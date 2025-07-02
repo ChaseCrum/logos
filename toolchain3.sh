@@ -3,11 +3,11 @@ set -e
 
 echo "🔧 Building GCC (Pass 1)"
 
-sudo su - lfs << "EOF"
-set -e
-
 export LFS=/mnt/lfs
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
+
+sudo su - lfs << EOF
+set -e
 
 cd \$LFS/sources
 tar -xf gcc-*.tar.* || { echo "[ERROR] Failed to extract GCC"; exit 1; }
@@ -56,7 +56,7 @@ make install
 
 # Create the limits.h header
 cd ..
-cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \
+cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \\
   \`dirname \$(${LFS_TGT}-gcc -print-libgcc-file-name)\`/include/limits.h
 
 EOF
