@@ -63,12 +63,13 @@ cd build
 make
 make install
 
-# Create limits.h header safely using eval
+# Create limits.h header safely
 cd ..
-eval GCC_LIB_PATH=\$(${LFS_TGT}-gcc -print-libgcc-file-name)
-LIMITS_DIR=\$(dirname \$GCC_LIB_PATH)/include
-mkdir -p \$LIMITS_DIR
-cat gcc/limitx.h gcc/glimits.h gcc/limity.h > \$LIMITS_DIR/limits.h
+GCC_BIN=\${LFS_TGT}-gcc
+GCC_LIB_PATH=\$("\$GCC_BIN" -print-libgcc-file-name)
+LIMITS_DIR=\$(dirname "\$GCC_LIB_PATH")/include
+mkdir -p "\$LIMITS_DIR"
+cat gcc/limitx.h gcc/glimits.h gcc/limity.h > "\$LIMITS_DIR/limits.h"
 
 EOF
 
