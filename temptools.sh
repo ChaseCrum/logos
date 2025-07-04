@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# === FIX: Preserve LFS variable even under sudo ===
+# === Ensure LFS is available, even if run via sudo ===
 if [ -z "$LFS" ]; then
-  if [ -n "$SUDO_USER" ]; then
-    LFS=$(sudo -u "$SUDO_USER" bash -c 'echo $LFS')
+  if [ -n "$SUDO_UID" ]; then
+    LFS=$(sudo -u "#$SUDO_UID" bash -c 'echo $LFS')
     export LFS
   fi
 fi
@@ -14,13 +14,13 @@ if [ -z "$LFS" ]; then
   exit 1
 fi
 
-# === If run as root, switch to 'lfs' user ===
+# === Switch to 'lfs' user if running as root ===
 if [ "$(id -u)" -eq 0 ] && [ "$USER" != "lfs" ]; then
-  echo "✅ Running as root. Executing build steps as 'lfs' user..."
-  exec sudo -H -u lfs env LFS="$LFS" bash "$0"
+  echo "✅ Running as root. Switching to 'lfs' user..."
+  exec sudo -E -u lfs env LFS="$LFS" bash "$0"
 fi
 
-cd $LFS/sources
+cd "$LFS/sources"
 
 build_and_install() {
   PACKAGE_GLOB="$1"
@@ -28,7 +28,7 @@ build_and_install() {
   MAKE_FLAGS="$3"
   POST_INSTALL="$4"
 
-  SRC_DIR=$(find . -type d -name "$PACKAGE_GLOB*" -print -quit)
+  SRC_DIR=$(find . -maxdepth 1 -type d -name "$PACKAGE_GLOB*" | head -n 1)
   if [ ! -d "$SRC_DIR" ]; then
     echo "❌ Source directory not found for $PACKAGE_GLOB"
     exit 1
@@ -48,7 +48,7 @@ build_and_install() {
     eval "$POST_INSTALL"
   fi
 
-  cd $LFS/sources
+  cd "$LFS/sources"
   echo "✅ $PACKAGE_GLOB build complete."
 }
 
@@ -57,7 +57,7 @@ build_and_install "m4-" \
   "./configure --prefix=/usr --host=\$LFS_TGT --build=\$(build-aux/config.guess)" "" ""
 
 # 6.3 Ncurses
-NCURSES_DIR=$(find . -type d -name "ncurses*" -print -quit)
+NCURSES_DIR=$(find . -type d -name "ncurses*" | head -n 1)
 cd "$NCURSES_DIR"
 mkdir build && pushd build
 ../configure AWK=gawk
@@ -89,7 +89,7 @@ build_and_install "diffutils-" \
   "./configure --prefix=/usr --host=\$LFS_TGT --build=\$(./build-aux/config.guess)" "" ""
 
 # 6.7 File
-FILE_DIR=$(find . -type d -name "file-"* -print -quit)
+FILE_DIR=$(find . -type d -name "file-"* | head -n 1)
 cd "$FILE_DIR"
 mkdir build && pushd build
 ../configure --disable-bzlib --disable-libseccomp --disable-xzlib --disable-zlib
@@ -106,7 +106,7 @@ build_and_install "findutils-" \
   "./configure --prefix=/usr --localstatedir=/var/lib/locate --host=\$LFS_TGT --build=\$(build-aux/config.guess)" "" ""
 
 # 6.9 Gawk
-GAWK_DIR=$(find . -type d -name "gawk-"* -print -quit)
+GAWK_DIR=$(find . -type d -name "gawk-"* | head -n 1)
 cd "$GAWK_DIR"
 sed -i 's/extras//' Makefile.in
 ./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess)
@@ -139,7 +139,7 @@ build_and_install "tar-" \
   "./configure --prefix=/usr --host=\$LFS_TGT --build=\$(build-aux/config.guess)" "" ""
 
 # 6.16 Xz
-XZ_DIR=$(find . -type d -name "xz-"* -print -quit)
+XZ_DIR=$(find . -type d -name "xz-"* | head -n 1)
 cd "$XZ_DIR"
 ./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess) --disable-static --docdir=/usr/share/doc/xz-5.6.4
 make
