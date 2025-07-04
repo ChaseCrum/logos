@@ -1,16 +1,16 @@
 #!/bin/bash
 set -e
 
+# Corrected check for sudo/root permissions
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ Please run this script with sudo."
+  exit 1
+fi
+
 # Safeguard: set LFS if not defined
 if [ -z "$LFS" ]; then
   export LFS=/mnt/lfs
   echo "⚠️  LFS not set, defaulting to $LFS"
-fi
-
-# Ensure script is executed via sudo
-if [ "$(id -u)" -ne 0 ]; then
-  echo "❌ Please run this script with sudo."
-  exit 1
 fi
 
 # Re-execute as 'lfs' user when running as root via sudo
