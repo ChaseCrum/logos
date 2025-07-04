@@ -1,16 +1,22 @@
 #!/bin/bash
 set -e
 
-# Ensure the LFS environment variable is set even when using sudo
-LFS=${LFS:-/mnt/lfs}
+# Ensure LFS is set
+if [ -z "$LFS" ]; then
+  echo "❌ LFS variable is not set."
+  exit 1
+fi
 
-# Function to run commands as 'lfs' user
-run_as_lfs() {
-  sudo -H -u lfs bash -c "$1"
-}
+# Ensure running as root but executing as 'lfs' user
+if [ "$(id -u)" -eq 0 ]; then
+  echo "✅ Running as root. Executing build steps as 'lfs' user..."
+  sudo -u lfs LFS=$LFS bash "$0"
+  exit $?
+fi
 
-# Change to sources directory
-cd /mnt/lfs/sources
+echo "🔧 Building temporary tools in $LFS..."
+
+cd $LFS/sources
 
 # M4
 echo "🔧 Building M4..."
@@ -32,18 +38,9 @@ pushd build
 make -C include
 make -C progs tic
 popd
-./configure --prefix=/usr \
-  --host=$LFS_TGT \
-  --build=$(./config.guess) \
-  --mandir=/usr/share/man \
-  --with-manpage-format=normal \
-  --with-shared \
-  --without-normal \
-  --with-cxx-shared \
-  --without-debug \
-  --without-ada \
-  --disable-stripping \
-  AWK=gawk
+./configure --prefix=/usr --host=$LFS_TGT --build=$(./config.guess) --mandir=/usr/share/man \
+  --with-manpage-format=normal --with-shared --without-normal --with-cxx-shared \
+  --without-debug --without-ada --disable-stripping AWK=gawk
 make
 make DESTDIR=$LFS TIC_PATH=$(pwd)/build/progs/tic install
 ln -sv libncursesw.so $LFS/usr/lib/libncurses.so
@@ -62,13 +59,12 @@ ln -sv bash $LFS/bin/sh
 cd ..
 rm -rf bash-*/
 
-# Coreutils
+# Coreutils (with fix)
 echo "🔧 Building Coreutils..."
 tar -xf coreutils-*.tar.*
 cd coreutils-*/
-./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess) \
-  --enable-install-program=hostname \
-  --enable-no-install-program=kill,uptime
+FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess) \
+  --enable-install-program=hostname --enable-no-install-program=kill,uptime
 make
 make DESTDIR=$LFS install
 mv -v $LFS/usr/bin/chroot $LFS/usr/sbin
@@ -189,8 +185,7 @@ rm -rf tar-*/
 echo "🔧 Building Xz..."
 tar -xf xz-*.tar.*
 cd xz-*/
-./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess) \
-  --disable-static \
+./configure --prefix=/usr --host=$LFS_TGT --build=$(build-aux/config.guess) --disable-static \
   --docdir=/usr/share/doc/xz-5.6.4
 make
 make DESTDIR=$LFS install
@@ -198,4 +193,4 @@ rm -v $LFS/usr/lib/liblzma.la
 cd ..
 rm -rf xz-*/
 
-echo "✅ temptools.sh completed successfully."
+echo "✅ Temporary tools build complete!"
