@@ -6,19 +6,12 @@ if [ -z "$LFS" ]; then
   echo "⚠️  LFS not set, defaulting to /mnt/lfs"
   export LFS=/mnt/lfs
 fi
-  export LFS=/mnt/lfs
-  echo "⚠️  LFS not set, defaulting to $LFS"
-fi
 
 # Must be run via sudo as root so we can switch to lfs
-# Removed incorrect sudo check
-  exit 1
-fi
-
-# Re-execute as lfs user if not already
 if [ "$(whoami)" != "lfs" ]; then
   exec sudo -H -u lfs env LFS="$LFS" bash "$0"
 fi
+
 
 cd $LFS/sources
 export LFS_TGT=$(uname -m)-lfs-linux-gnu
