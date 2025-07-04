@@ -15,3 +15,9 @@ sleep 3
 sudo ./toolchain2.sh
 sleep 3
 sudo ./toolchain3.sh
+sleep 3
+sudo ./toolchain4.sh
+sleep 3
+sudo ./toolchain5.sh
+sleep 3
+sudo ./toolchain6.sh
