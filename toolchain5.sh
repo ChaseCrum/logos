@@ -57,8 +57,9 @@ make DESTDIR=\$LFS install
 # Fix ldd path
 sed '/RTLDLIST=/s@/usr@@g' -i \$LFS/usr/bin/ldd
 
-# Sanity check
-cd \$LFS
+# Sanity check in a writable subdirectory
+mkdir -p \$LFS/tmp/glibc-check
+cd \$LFS/tmp/glibc-check
 echo 'int main(){}' | \$LFS_TGT-gcc -xc -
 readelf -l a.out | grep ld-linux || echo "⚠️ Toolchain test failed"
 rm -v a.out
