@@ -177,6 +177,7 @@ cd ..
 tar -xf binutils-*.tar.* && cd binutils-*/
 sed '6031s/\$add_dir//' -i ltmain.sh
 mkdir -v build && cd build
+
 ../configure --prefix=/usr \
   --build=$(../config.guess) \
   --host=$LFS_TGT \
@@ -187,10 +188,12 @@ mkdir -v build && cd build
   --enable-64-bit-bfd \
   --enable-new-dtags \
   --enable-default-hash-style=gnu
+
 make
-make DESTDIR=$LFS install
+env DESTDIR=$LFS make install
 rm -v $LFS/usr/lib/lib{bfd,ctf,ctf-nobfd,opcodes,sframe}.{a,la}
-cd ..
+cd ../..
+
 
 # 6.18 GCC-14.2.0 Pass 2
 tar -xf gcc-*.tar.* && cd gcc-*/
