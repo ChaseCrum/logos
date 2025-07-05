@@ -173,18 +173,6 @@ make
 make DESTDIR=$LFS install
 cd ..
 
-# 6.16 Xz-5.6.4
-tar -xf xz-*.tar.* && cd xz-*/
-./configure --prefix=/usr \
-  --host=$LFS_TGT \
-  --build=$(build-aux/config.guess) \
-  --disable-static \
-  --docdir=/usr/share/doc/xz-5.6.4
-make
-make DESTDIR=$LFS install
-rm -v $LFS/usr/lib/liblzma.la
-cd ..
-
 # 6.17 Binutils-2.44 Pass 2
 tar -xf binutils-*.tar.* && cd binutils-*/
 sed '6031s/\$add_dir//' -i ltmain.sh
