@@ -174,6 +174,15 @@ make DESTDIR=$LFS install
 cd ..
 
 # 6.17 Binutils-2.44 Pass 2
+# Check if binutils-* directory exists in /mnt/lfs/sources
+if ls /mnt/lfs/sources/binutils-* 1>/dev/null 2>&1; then
+  echo "✅ Binutils source directory already exists. Skipping download."
+else
+  echo "⬇️  Binutils not found. Downloading..."
+  wget https://ftp.gnu.org/gnu/binutils/binutils-2.44.tar.xz -P /mnt/lfs/sources
+  sudo chown lfs:lfs /mnt/lfs/sources/binutils-2.44.tar.xz
+  echo "✅ Downloaded and ownership corrected."
+fi
 tar -xf binutils-*.tar.* && cd binutils-*/
 sed '6031s/\$add_dir//' -i ltmain.sh
 mkdir -v build && cd build
@@ -196,18 +205,23 @@ cd ../..
 
 
 # 6.18 GCC-14.2.0 Pass 2
+t# 6.18 GCC-14.2.0 Pass 2
 tar -xf gcc-*.tar.* && cd gcc-*/
 tar -xf ../mpfr-*.tar.* && mv -v mpfr-* mpfr
 tar -xf ../gmp-*.tar.* && mv -v gmp-* gmp
 tar -xf ../mpc-*.tar.* && mv -v mpc-* mpc
+
 case $(uname -m) in
   x86_64)
     sed -e '/m64=/s/lib64/lib/' -i.orig gcc/config/i386/t-linux64
     ;;
 esac
+
 sed '/thread_header =/s/@.*@/gthr-posix.h/' \
   -i libgcc/Makefile.in libstdc++-v3/include/Makefile.in
+
 mkdir -v build && cd build
+
 ../configure --build=$(../config.guess) \
   --host=$LFS_TGT \
   --target=$LFS_TGT \
@@ -225,9 +239,16 @@ mkdir -v build && cd build
   --disable-libssp \
   --disable-libvtv \
   --enable-languages=c,c++
+
 make
-make DESTDIR=$LFS install
+
+if [ -z "$LFS" ]; then
+  echo "❌ ERROR: \$LFS is not set. Aborting install to prevent host contamination."
+  exit 1
+fi
+
+env DESTDIR=$LFS make install
 ln -sv gcc $LFS/usr/bin/cc
-cd ..
+cd ../..
 
 echo "🎉 Chapter 6 temporary tools build complete!"
