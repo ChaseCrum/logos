@@ -212,7 +212,6 @@ cd ../..
 
 
 # 6.18 GCC-14.2.0 Pass 2
-t# 6.18 GCC-14.2.0 Pass 2
 tar -xf gcc-*.tar.* && cd gcc-*/
 tar -xf ../mpfr-*.tar.* && mv -v mpfr-* mpfr
 tar -xf ../gmp-*.tar.* && mv -v gmp-* gmp
