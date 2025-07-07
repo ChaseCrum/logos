@@ -180,9 +180,9 @@ if ls /mnt/lfs/sources/binutils-* 1>/dev/null 2>&1; then
 else
   echo "⬇️  Binutils not found. Downloading..."
   wget https://ftp.gnu.org/gnu/binutils/binutils-2.44.tar.xz -P /mnt/lfs/sources
-  sudo chown lfs:lfs /mnt/lfs/sources/binutils-2.44.tar.xz
-  echo "✅ Downloaded and ownership corrected."
+  echo "✅ Downloaded binutils."
 fi
+
 tar -xf binutils-*.tar.* && cd binutils-*/
 sed '6031s/\$add_dir//' -i ltmain.sh
 mkdir -v build && cd build
