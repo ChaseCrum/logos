@@ -1,12 +1,5 @@
 #!/bin/bash
 set -e
-# Ensure LFS and PATH are properly set for the temporary tools build
-if [ -z "$LFS" ]; then
-  export LFS=/mnt/lfs
-fi
-
-export PATH=/tools/bin:/bin:/usr/bin
-
 
 # Safeguard: set LFS if not defined
 if [ -z "$LFS" ]; then
