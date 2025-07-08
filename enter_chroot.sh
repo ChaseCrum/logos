@@ -23,29 +23,17 @@ esac
 # 🗂 Mount virtual filesystems
 echo "🔍 Mounting and verifying virtual filesystems..."
 
-if ! mountpoint -q $LFS/dev; then
-  mount --bind /dev $LFS/dev || { echo "❌ Failed to bind /dev"; exit 1; }
-fi
+mount --bind /dev $LFS/dev || { echo "❌ Failed to bind /dev"; exit 1; }
+mount --bind /dev/pts $LFS/dev/pts || { echo "❌ Failed to bind /dev/pts"; exit 1; }
+mount -t proc proc $LFS/proc || { echo "❌ Failed to mount /proc"; exit 1; }
+mount -t sysfs sysfs $LFS/sys || { echo "❌ Failed to mount /sys"; exit 1; }
+mount -t tmpfs tmpfs $LFS/run || { echo "❌ Failed to mount /run"; exit 1; }
 
-if ! mountpoint -q $LFS/dev/pts; then
-  mount --bind /dev/pts $LFS/dev/pts || { echo "❌ Failed to bind /dev/pts"; exit 1; }
-fi
-
-if ! mountpoint -q $LFS/proc; then
-  mount -t proc proc $LFS/proc || { echo "❌ Failed to mount /proc"; exit 1; }
-fi
-
-if ! mountpoint -q $LFS/sys; then
-  mount -t sysfs sysfs $LFS/sys || { echo "❌ Failed to mount /sys"; exit 1; }
-fi
-
-if ! mountpoint -q $LFS/run; then
-  mount -t tmpfs tmpfs $LFS/run || { echo "❌ Failed to mount /run"; exit 1; }
-fi
-
+# Handle /dev/shm
 if [ -h $LFS/dev/shm ]; then
-  dir=$(readlink -f $LFS/dev/shm)
-  mkdir -pv $dir
+  install -v -d -m 1777 $LFS$(realpath /dev/shm)
+else
+  mount -vt tmpfs -o nosuid,nodev tmpfs $LFS/dev/shm
 fi
 
 echo "✅ All virtual filesystems mounted."
@@ -53,10 +41,10 @@ echo "✅ All virtual filesystems mounted."
 # 🚪 Enter the chroot environment
 echo "🚪 Entering chroot..."
 chroot "$LFS" /usr/bin/env -i \
-  HOME=/root                  \
-  TERM="$TERM"               \
-  PS1='(lfs chroot) \\u:\\w\\$ ' \
-  PATH=/usr/bin:/usr/sbin    \
+  HOME=/root \
+  TERM="$TERM" \
+  PS1='(lfs chroot) \u:\w\$ ' \
+  PATH=/usr/bin:/usr/sbin \
+  MAKEFLAGS="-j$(nproc)" \
+  TESTSUITEFLAGS="-j$(nproc)" \
   /bin/bash --login
-
-
