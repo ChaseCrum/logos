@@ -10,6 +10,13 @@ if [ -z "$LFS" ]; then
   echo "⚠️  LFS not set. Defaulting to /mnt/lfs"
 fi
 
+# Sanity check: /dev/pts must be mounted on the host
+if ! mountpoint -q /dev/pts; then
+  echo "❌ /dev/pts is not mounted on the host. Please run:"
+  echo "    sudo mount -t devpts devpts /dev/pts"
+  exit 1
+fi
+
 # Create mount point directories if they don't exist
 mkdir -pv $LFS/{dev,proc,sys,run}
 
@@ -48,6 +55,11 @@ if [ -h $LFS/dev/shm ]; then
   install -v -d -m 1777 $LFS$(realpath /dev/shm)
 elif ! mountpoint -q $LFS/dev/shm; then
   mount -vt tmpfs -o nosuid,nodev tmpfs $LFS/dev/shm
+fi
+
+# Ensure /dev/ptmx exists (important for PTY allocation inside chroot)
+if [ ! -e $LFS/dev/ptmx ]; then
+  ln -sv /dev/pts/ptmx $LFS/dev/ptmx
 fi
 
 echo "✅ All virtual filesystems mounted."
