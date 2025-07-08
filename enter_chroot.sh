@@ -10,6 +10,9 @@ if [ -z "$LFS" ]; then
   echo "⚠️  LFS not set. Defaulting to /mnt/lfs"
 fi
 
+# Create mount point directories if they don't exist
+mkdir -pv $LFS/{dev,proc,sys,run}
+
 # 🧼 Set ownership of critical directories to root
 echo "🔧 Ensuring root ownership of system directories..."
 chown --from lfs -R root:root $LFS/{usr,lib,var,etc,bin,sbin,tools}
@@ -55,7 +58,5 @@ chroot "$LFS" /usr/bin/env -i \
   PS1='(lfs chroot) \\u:\\w\\$ ' \
   PATH=/usr/bin:/usr/sbin    \
   /bin/bash --login
-
-# EOF
 
 
