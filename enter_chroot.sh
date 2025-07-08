@@ -20,19 +20,33 @@ case $(uname -m) in
   x86_64) chown --from lfs -R root:root $LFS/lib64 ;;
 esac
 
-# 🗂 Mount virtual filesystems
+# 🗂 Mount virtual filesystems if not already mounted
 echo "🔍 Mounting and verifying virtual filesystems..."
 
-mount --bind /dev $LFS/dev || { echo "❌ Failed to bind /dev"; exit 1; }
-mount --bind /dev/pts $LFS/dev/pts || { echo "❌ Failed to bind /dev/pts"; exit 1; }
-mount -t proc proc $LFS/proc || { echo "❌ Failed to mount /proc"; exit 1; }
-mount -t sysfs sysfs $LFS/sys || { echo "❌ Failed to mount /sys"; exit 1; }
-mount -t tmpfs tmpfs $LFS/run || { echo "❌ Failed to mount /run"; exit 1; }
+if ! mountpoint -q $LFS/dev; then
+  mount --bind /dev $LFS/dev || { echo "❌ Failed to bind /dev"; exit 1; }
+fi
+
+if ! mountpoint -q $LFS/dev/pts; then
+  mount --bind /dev/pts $LFS/dev/pts || { echo "❌ Failed to bind /dev/pts"; exit 1; }
+fi
+
+if ! mountpoint -q $LFS/proc; then
+  mount -t proc proc $LFS/proc || { echo "❌ Failed to mount /proc"; exit 1; }
+fi
+
+if ! mountpoint -q $LFS/sys; then
+  mount -t sysfs sysfs $LFS/sys || { echo "❌ Failed to mount /sys"; exit 1; }
+fi
+
+if ! mountpoint -q $LFS/run; then
+  mount -t tmpfs tmpfs $LFS/run || { echo "❌ Failed to mount /run"; exit 1; }
+fi
 
 # Handle /dev/shm
 if [ -h $LFS/dev/shm ]; then
   install -v -d -m 1777 $LFS$(realpath /dev/shm)
-else
+elif ! mountpoint -q $LFS/dev/shm; then
   mount -vt tmpfs -o nosuid,nodev tmpfs $LFS/dev/shm
 fi
 
