@@ -212,10 +212,11 @@ cd ../..
 
 
 # 6.18 GCC-14.2.0 Pass 2
+# 6.18 GCC-14.2.0 Pass 2
 tar -xf gcc-*.tar.* && cd gcc-*/
-tar -xf ../mpfr-*.tar.* && mv -v mpfr-* mpfr
-tar -xf ../gmp-*.tar.* && mv -v gmp-* gmp
-tar -xf ../mpc-*.tar.* && mv -v mpc-* mpc
+tar -xf ../mpfr-*.tar.* && mv -v mpfr-[0-9]* mpfr
+tar -xf ../gmp-*.tar.* && mv -v gmp-[0-9]* gmp
+tar -xf ../mpc-*.tar.* && mv -v mpc-[0-9]* mpc
 
 case $(uname -m) in
   x86_64)
@@ -226,6 +227,7 @@ esac
 sed '/thread_header =/s/@.*@/gthr-posix.h/' \
   -i libgcc/Makefile.in libstdc++-v3/include/Makefile.in
 
+rm -rf build
 mkdir -v build && cd build
 
 ../configure --build=$(../config.guess) \
@@ -256,5 +258,6 @@ fi
 env DESTDIR=$LFS make install
 ln -sv gcc $LFS/usr/bin/cc
 cd ../..
+
 
 echo "🎉 Chapter 6 temporary tools build complete!"
