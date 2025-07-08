@@ -23,3 +23,5 @@ sleep 3
 sudo ./toolchain6.sh
 sleep 3
 sudo ./temptools.sh
+sleep 3
+sudo ./enter_chroot.sh
