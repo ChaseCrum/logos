@@ -33,8 +33,8 @@ log_status() {
 download_with_retry() {
   local url=$1
   local filename=$2
-  local retries=3
-  local delay=5
+  local retries=5
+  local delay=10
 
   for ((i=1; i<=retries; i++)); do
     echo -e "${YELLOW}Attempt $i to download $filename...${NC}"
