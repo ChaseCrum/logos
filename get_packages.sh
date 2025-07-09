@@ -64,7 +64,7 @@ DejaGNU|https://ftp.gnu.org/gnu/dejagnu/dejagnu-1.6.3.tar.gz|68c5208c58236eba447
 Diffutils|https://ftp.gnu.org/gnu/diffutils/diffutils-3.11.tar.xz|75ab2bb7b5ac0e3e10cece85bd1780c2
 E2fsprogs|https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v1.47.2/e2fsprogs-1.47.2.tar.gz|752e5a3ce19aea060d8a203f2fae9baa
 Elfutils|https://sourceware.org/ftp/elfutils/0.192/elfutils-0.192.tar.bz2|a6bb1efc147302cfc15b5c2b827f186a
-Expat|https://prdownloads.sourceforge.net/expat/expat-2.6.4.tar.xz|101fe3e320a2800f36af8cf4045b45c7
+Expat|https://prdownloads.sourceforge.net/expat/expat-2.7.1.tar.xz|9f0c266ff4b9720beae0c6bd53ae4469
 Expect|https://prdownloads.sourceforge.net/expect/expect5.45.4.tar.gz|00fce8de158422f5ccd2666512329bd2
 File|https://astron.com/pub/file/file-5.46.tar.gz|459da2d4b534801e2e2861611d823864
 Findutils|https://ftp.gnu.org/gnu/findutils/findutils-4.10.0.tar.xz|870cfd71c07d37ebe56f9f4aaf4ad872
